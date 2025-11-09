@@ -8,9 +8,8 @@ Nâng cấp: Vanh
 
 ⚡ Tự động nối tiếp từ (Auto-Play)
 
-🚫 Tắt Quảng Cáo Shopee (Anti-Ad)
-
 🧠 Có Não: Lưu Từ Khóa Thông Minh: Bot lưu lại những từ đã dùng và từ thắng để lần sau chạy nhanh hơn cả tên lửa.
+(NEW): Đã có thể lưu những từ lỗi của các player top BXH để có thể leo top
 
 📊 Dashboard đủ tính năng
 
