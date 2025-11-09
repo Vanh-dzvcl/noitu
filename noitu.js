@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         NoiTu.Pro - Bot cực bá
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  Bot nối từ thông minh
+// @version      3.3
+// @description  Bot nối từ thông minh, biết diễn và lì đòn
 // @author       Hoanglong291 + Vanh
 // @match        *://*.noitu.pro/*
 // @grant        none
@@ -12,7 +12,7 @@
 (function() {
     'use strict';
 
-    console.log('[Bot Launcher v2.0 - Pro Stats] Đang khởi động...');
+    console.log('[Bot Launcher v3.2 - Fix Cache] Đang khởi động...');
 
     const SCRIPT_ID = 'vipProBot_v3.3';
     let isPaused = false;
@@ -22,6 +22,10 @@
     let wins = 0;
     let losses = 0;
     let wordCache = new Map();
+
+    function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
     function saveState() {
         const state = {
@@ -167,6 +171,49 @@
         document.body.appendChild(modalBackdrop);
     }
 
+    function exportCacheToTxt() {
+        console.log('[Bot] Đang xuất cache "Từ Thắng" ra file .txt...');
+        let winWordCount = 0;
+        let content = '';
+
+        const sortedCache = Array.from(wordCache.entries()).sort((a, b) => {
+            const aIsWin = (a[1] === 'WIN_CONDITION');
+            const bIsWin = (b[1] === 'WIN_CONDITION');
+            if (aIsWin && !bIsWin) return -1;
+            if (!aIsWin && bIsWin) return 1;
+            return a[0].localeCompare(b[0]);
+        });
+
+        sortedCache.forEach(([key, value]) => {
+            if (value === 'WIN_CONDITION') {
+                winWordCount++;
+                const head = key.split(' ')[0];
+                content += `"${key}" → "${head}"\n`;
+            }
+        });
+
+        if (winWordCount === 0) {
+            alert('Bot chưa "học" được "Từ Thắng" nào, không có gì để tải.');
+            return;
+        }
+
+        const fullContent = `[Bot Nối Từ - Danh Sách "Từ Thắng"]\n` +
+                          `Ngày xuất: ${new Date().toLocaleString('vi-VN')}\n` +
+                          `Tổng cộng: ${winWordCount} từ\n` +
+                          `----------------------------------------\n\n` +
+                          content;
+
+        const blob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `noitu_pro_win_cache_${Date.now()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    }
+
+
     function createProDashboard() {
         if (document.getElementById('bot_dashboard')) return;
 
@@ -183,11 +230,13 @@
         dashboard.style.zIndex = '10000';
         dashboard.style.maxWidth = '300px';
         dashboard.style.fontFamily = 'Arial, sans-serif';
+        dashboard.style.userSelect = 'none';
 
         const title = document.createElement('h3');
         title.textContent = 'Bot Nối Từ';
         title.style.textAlign = 'center';
         title.style.margin = '0 0 10px 0';
+        title.style.cursor = 'move';
         dashboard.appendChild(title);
 
         const timeStampDisplay = document.createElement('div');
@@ -233,7 +282,6 @@
         viewCacheButton.style.cursor = 'pointer';
         dashboard.appendChild(viewCacheButton);
 
-        // Nút Xóa Cache (Toàn bộ)
         const clearCacheButton = document.createElement('button');
         clearCacheButton.textContent = 'Xóa Sạch Cache (Xóa hết)';
         clearCacheButton.style.width = '100%';
@@ -245,6 +293,18 @@
         clearCacheButton.style.borderRadius = '5px';
         clearCacheButton.style.cursor = 'pointer';
         dashboard.appendChild(clearCacheButton);
+
+        const exportCacheButton = document.createElement('button');
+        exportCacheButton.textContent = 'Tải (Export) Từ Thắng (.txt)';
+        exportCacheButton.style.width = '100%';
+        exportCacheButton.style.padding = '5px';
+        exportCacheButton.style.marginTop = '5px';
+        exportCacheButton.style.backgroundColor = '#28a745';
+        exportCacheButton.style.color = 'white';
+        exportCacheButton.style.border = 'none';
+        exportCacheButton.style.borderRadius = '5px';
+        exportCacheButton.style.cursor = 'pointer';
+        dashboard.appendChild(exportCacheButton);
 
         const speedLabel = document.createElement('label');
         speedLabel.textContent = 'Tốc độ Gõ: 500ms';
@@ -262,6 +322,31 @@
 
         document.body.appendChild(dashboard);
 
+        title.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            const rect = dashboard.getBoundingClientRect();
+            const offsetX = e.clientX - rect.left;
+            const offsetY = e.clientY - rect.top;
+
+            dashboard.style.right = 'auto';
+            dashboard.style.left = rect.left + 'px';
+            dashboard.style.top = rect.top + 'px';
+
+            function dragElement(e) {
+                e.preventDefault();
+                dashboard.style.top = (e.clientY - offsetY) + 'px';
+                dashboard.style.left = (e.clientX - offsetX) + 'px';
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+
+            document.onmousemove = dragElement;
+            document.onmouseup = closeDragElement;
+        });
+
         pauseButton.addEventListener('click', () => {
             isPaused = !isPaused;
             pauseButton.textContent = isPaused ? 'Tiếp Tục (Resume)' : 'Tạm Dừng (Pause)';
@@ -278,6 +363,8 @@
                 console.log('[Bot] Đã xóa sạch cache!');
             }
         });
+
+        exportCacheButton.addEventListener('click', exportCacheToTxt);
 
         speedSlider.addEventListener('input', (e) => {
             typingSpeed = parseInt(e.target.value, 10);
@@ -319,13 +406,27 @@
     function runGameBot(textInput, currentWordSpan) {
         console.log("[Bot] Đã kích hoạt logic CHƠI GAME.");
 
-        function wait(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-        async function typeLikeHuman(word) {
+        async function typeLikeHuman(word, speedMode = 'normal') {
             textInput.value = '';
-            const baseDelay = typingSpeed / (word.length + 1);
+
+            let currentTypingSpeed = parseInt(typingSpeed, 10);
+
+            switch (speedMode) {
+                case 'thinking':
+                    await wait(800 + Math.random() * 400);
+                    currentTypingSpeed = typingSpeed;
+                    break;
+                case 'fast':
+                    currentTypingSpeed = Math.max(100, typingSpeed / 2);
+                    break;
+                case 'slow':
+                    currentTypingSpeed = (typingSpeed * 2) + 500;
+                    break;
+                default:
+                    currentTypingSpeed = typingSpeed;
+            }
+
+            const baseDelay = currentTypingSpeed / (word.length + 1);
             for (const char of word) {
                 const randomDelay = baseDelay + (Math.random() * 50 - 25);
                 await wait(Math.max(30, randomDelay));
@@ -355,6 +456,23 @@
             setTimeout(() => msg.remove(), 3000);
         }
 
+        async function fetchWithRetry(url, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.warn(`[Bot Fetch] Lỗi: ${error.message}. Thử lại... (còn ${retries - 1} lần)`);
+                if (retries > 0) {
+                    await wait(delay);
+                    return fetchWithRetry(url, retries - 1, delay);
+                } else {
+                    console.error('[Bot Fetch] Hết lượt thử lại, "bó tay" ván này!');
+                    return null;
+                }
+            }
+        }
+
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 if (isPaused) return;
@@ -368,35 +486,54 @@
                         const cachedAnswer = wordCache.get(currentWord);
                         if (cachedAnswer === "WIN_CONDITION") {
                             const head = currentWord.split(' ')[0];
-                            typeLikeHuman(head);
+                            typeLikeHuman(head, 'slow');
                         } else {
-                            typeLikeHuman(cachedAnswer);
+                            typeLikeHuman(cachedAnswer, 'fast');
                         }
                         return;
                     }
 
                     console.log(`[Cache MISS]: Fetch từ mới: ${currentWord}`);
-                    fetch(`https://noitu.pro/answer?word=${encodeURIComponent(currentWord)}`)
-                        .then(response => response.json())
+
+                    fetchWithRetry(`https://noitu.pro/answer?word=${encodeURIComponent(currentWord)}`)
                         .then(data => {
                             if (isPaused) return;
+
+                            if (!data) {
+                                displayTempMessage('Lỗi API! Bot "bó tay"!', "red");
+                                return;
+                            }
+
                             if (data.success && data.nextWord) {
                                 if (data.win) {
+                                    console.log(`[Bot] API báo ${currentWord} là TỪ LỖI (WIN_CONDITION)`);
                                     wordCache.set(currentWord, "WIN_CONDITION");
+                                    saveState();
                                     const head = currentWord.split(' ')[0];
-                                    typeLikeHuman(head);
+                                    typeLikeHuman(head, 'thinking');
                                 } else {
+                                    console.log(`[Bot] API trả lời cho ${currentWord} là ${data.nextWord.tail}`);
                                     const tail = data.nextWord.tail;
                                     wordCache.set(currentWord, tail);
-                                    typeLikeHuman(tail);
+                                    saveState();
+                                    typeLikeHuman(tail, 'thinking');
                                 }
+                            } else if (data.success === false) {
+                                console.log(`[Bot] API báo ${currentWord} KHÔNG CÓ TỪ NỐI! => Lưu WIN_CONDITION`);
+                                wordCache.set(currentWord, "WIN_CONDITION");
                                 saveState();
+
+                                const head = currentWord.split(' ')[0];
+                                typeLikeHuman(head, 'thinking');
+                            } else {
+                                console.warn(`[Bot] API trả về data lạ cho "${currentWord}":`, data);
+                                displayTempMessage('Lỗi API (lạ)! Bot "bó tay"!', "orange");
                             }
-                        })
-                        .catch(error => console.error('Error:', error));
+                        });
                 }
             });
         });
+
 
         const modalObserver = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
@@ -437,30 +574,6 @@
         console.log('[Bot] Lõi game đã kích hoạt (Nghe + Nhìn).');
     }
 
-    function runMenuBot() {
-        console.log("[Bot] Đã kích hoạt logic MENU (Auto-Join).");
-
-        const autoJoinInterval = setInterval(() => {
-            if (isPaused) {
-                console.log('[Bot Menu] Đang Tạm Dừng, sẽ không tự vào game.');
-                return;
-            }
-
-            const soloButton = Array.from(document.querySelectorAll('a')).find(
-                a => a.textContent.trim().toLowerCase() === '1vs1' && a.getAttribute('href') === '/solo'
-            );
-
-            if (soloButton) {
-                console.log("[Bot Menu] Đã tìm thấy nút 1vs1. Đang click...");
-                clearInterval(autoJoinInterval);
-                soloButton.click();
-            } else {
-                 console.log("[Bot Menu] Đang tìm nút 1vs1...");
-            }
-        }, 1500);
-    }
-
-
     loadState();
 
     setTimeout(() => {
@@ -481,14 +594,8 @@
             }
 
         } else if (path === '/') {
-            const soloButton = Array.from(document.querySelectorAll('a')).find(
-                a => a.textContent.trim().toLowerCase() === '1vs1' && a.getAttribute('href') === '/solo'
-            );
-            if (soloButton) {
-                console.log('[Bot Launcher] Đã nhận diện trang MENU. Kích hoạt bot auto-join...');
-                clearInterval(launcherInterval);
-                runMenuBot();
-            }
+            console.log('[Bot Launcher] Đã nhận diện trang MENU. Bot đang chạy (chờ vào game)...');
+            clearInterval(launcherInterval);
 
         } else {
             console.log(`[Bot Launcher] Đang ở trang lạ (${path}). Sẽ không làm gì.`);
