@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         NoiTu.Pro - Bot cực bá
 // @namespace    http://tampermonkey.net/
-// @version      3.3
-// @description  Bot nối từ thông minh, biết diễn và lì đòn
-// @author       Hoanglong291 + Vanh
+// @version      3.3.2 (Bản "Sạch Sẽ" - Cày lại từ đầu)
+// @description  Bot nối từ thông minh, biết diễn và lì đòn (Bản v3.3 "Độ")
+// @author       Hoanglong291 + Vanh (Độ bởi Gemini)
 // @match        *://*.noitu.pro/*
 // @grant        none
 // @run-at       document-end
@@ -12,9 +12,11 @@
 (function() {
     'use strict';
 
-    console.log('[Bot Launcher v3.2 - Fix Cache] Đang khởi động...');
+    console.log('[Bot Launcher v3.3.2 - "Sạch Sẽ"] Đang khởi động...');
 
-    const SCRIPT_ID = 'vipProBot_v3.3';
+    // [FIX LỖI] Đổi ID để "làm lại cuộc đời", không "đụng" "sổ" cũ
+    const SCRIPT_ID = 'vipProBot_v3.3.2_CLEAN';
+
     let isPaused = false;
     let typingSpeed = 500;
     let startTime = 0;
@@ -51,6 +53,8 @@
         }
         startTime = Date.now();
     }
+
+    // ======== [Hàm "Phẫu Thuật" (Chỉ "Show" Từ Thắng)] ========
     function showCacheModal() {
         const modalBackdrop = document.createElement('div');
         modalBackdrop.id = 'bot_cache_modal_backdrop';
@@ -88,23 +92,22 @@
 
         function refreshCacheList() {
             listContainer.innerHTML = '';
-            title.textContent = `Trí Nhớ (Cache) - ${wordCache.size} từ`;
 
-            if (wordCache.size === 0) {
+            const winWords = Array.from(wordCache.entries()).filter(([key, value]) => {
+                return value === 'WIN_CONDITION';
+            });
+
+            winWords.sort((a, b) => a[0].localeCompare(b[0]));
+
+            title.textContent = `Trí Nhớ (Chỉ "Từ Thắng") - ${winWords.length} từ`;
+
+            if (winWords.length === 0) {
                 const emptyLi = document.createElement('li');
-                emptyLi.textContent = 'Trí nhớ đang "trống trơn".';
+                emptyLi.textContent = 'Trí nhớ "Từ Thắng" đang "trống trơn".';
                 emptyLi.style.textAlign = 'center';
                 listContainer.appendChild(emptyLi);
             } else {
-                const sortedCache = Array.from(wordCache.entries()).sort((a, b) => {
-                    const aIsWin = (a[1] === 'WIN_CONDITION');
-                    const bIsWin = (b[1] === 'WIN_CONDITION');
-                    if (aIsWin && !bIsWin) return -1;
-                    if (!aIsWin && bIsWin) return 1;
-                    return 0;
-                });
-
-                sortedCache.forEach(([key, value]) => {
+                winWords.forEach(([key, value]) => {
                     const li = document.createElement('li');
                     li.style.display = 'flex';
                     li.style.justifyContent = 'space-between';
@@ -113,13 +116,11 @@
                     li.style.padding = '8px 5px';
 
                     const textSpan = document.createElement('span');
-                    textSpan.innerHTML = `<b>"${key}"</b> → <i>"${value === 'WIN_CONDITION' ? 'TỪ THẮNG' : value}"</i>`;
+                    textSpan.innerHTML = `<b>"${key}"</b> → <i>"TỪ THẮNG"</i>`;
                     li.appendChild(textSpan);
 
-                    if (value === 'WIN_CONDITION') {
-                        li.style.backgroundColor = '#d4edda';
-                        li.style.color = '#155724';
-                    }
+                    li.style.backgroundColor = '#d4edda';
+                    li.style.color = '#155724';
 
                     const deleteButton = document.createElement('button');
                     deleteButton.textContent = 'Xóa';
@@ -170,6 +171,7 @@
         modalBackdrop.appendChild(modalPanel);
         document.body.appendChild(modalBackdrop);
     }
+    // ======== [HẾT "PHẪU THUẬT"] ========
 
     function exportCacheToTxt() {
         console.log('[Bot] Đang xuất cache "Từ Thắng" ra file .txt...');
@@ -214,6 +216,7 @@
     }
 
 
+    // ======== [Hàm "Phẫu Thuật" (Thêm Nút Reset)] ========
     function createProDashboard() {
         if (document.getElementById('bot_dashboard')) return;
 
@@ -245,7 +248,6 @@
         winsDisplay.id = 'bot_wins';
         const lossesDisplay = document.createElement('div');
         lossesDisplay.id = 'bot_losses';
-
         const wlRatioDisplay = document.createElement('div');
         wlRatioDisplay.id = 'bot_wl_ratio';
         const winWordCountDisplay = document.createElement('div');
@@ -271,7 +273,7 @@
         dashboard.appendChild(pauseButton);
 
         const viewCacheButton = document.createElement('button');
-        viewCacheButton.textContent = 'Xem/Xóa Từ Đã Lưu (Cache)';
+        viewCacheButton.textContent = 'Xem/Xóa "Từ Thắng"'; // [FIX] Đổi tên nút
         viewCacheButton.style.width = '100%';
         viewCacheButton.style.padding = '5px';
         viewCacheButton.style.marginTop = '5px';
@@ -306,6 +308,20 @@
         exportCacheButton.style.cursor = 'pointer';
         dashboard.appendChild(exportCacheButton);
 
+        // ======== [MỚI - NÚT RESET STATS] ========
+        const resetStatsButton = document.createElement('button');
+        resetStatsButton.textContent = 'Reset Stats (W/L, Giờ)';
+        resetStatsButton.style.width = '100%';
+        resetStatsButton.style.padding = '5px';
+        resetStatsButton.style.marginTop = '5px';
+        resetStatsButton.style.backgroundColor = '#6c757d'; // Màu Xám
+        resetStatsButton.style.color = 'white';
+        resetStatsButton.style.border = 'none';
+        resetStatsButton.style.borderRadius = '5px';
+        resetStatsButton.style.cursor = 'pointer';
+        dashboard.appendChild(resetStatsButton);
+        // ======== [HẾT NÚT MỚI] ========
+
         const speedLabel = document.createElement('label');
         speedLabel.textContent = 'Tốc độ Gõ: 500ms';
         speedLabel.id = 'bot_speedLabel';
@@ -327,22 +343,18 @@
             const rect = dashboard.getBoundingClientRect();
             const offsetX = e.clientX - rect.left;
             const offsetY = e.clientY - rect.top;
-
             dashboard.style.right = 'auto';
             dashboard.style.left = rect.left + 'px';
             dashboard.style.top = rect.top + 'px';
-
             function dragElement(e) {
                 e.preventDefault();
                 dashboard.style.top = (e.clientY - offsetY) + 'px';
                 dashboard.style.left = (e.clientX - offsetX) + 'px';
             }
-
             function closeDragElement() {
                 document.onmouseup = null;
                 document.onmousemove = null;
             }
-
             document.onmousemove = dragElement;
             document.onmouseup = closeDragElement;
         });
@@ -365,6 +377,18 @@
         });
 
         exportCacheButton.addEventListener('click', exportCacheToTxt);
+
+        // ======== [MỚI - LOGIC NÚT RESET STATS] ========
+        resetStatsButton.addEventListener('click', () => {
+            if (confirm('Bạn chắc chắn muốn RESET toàn bộ stats (Thắng/Thua/Giờ) về 0?\n(Cache "Từ Thắng" sẽ được giữ nguyên)')) {
+                wins = 0;
+                losses = 0;
+                totalTime = 0;
+                startTime = Date.now();
+                saveState();
+                console.log('[Bot] Đã reset Stats (W/L, Giờ)!');
+            }
+        });
 
         speedSlider.addEventListener('input', (e) => {
             typingSpeed = parseInt(e.target.value, 10);
@@ -402,13 +426,17 @@
 
         }, 1000);
     }
+    // ======== [HẾT "PHẪU THUẬT"] ========
 
+
+    // ==========================================
+    // (Lõi Game v3.3 "Ngây Thơ" - Giữ Nguyên)
+    // ==========================================
     function runGameBot(textInput, currentWordSpan) {
         console.log("[Bot] Đã kích hoạt logic CHƠI GAME.");
 
         async function typeLikeHuman(word, speedMode = 'normal') {
             textInput.value = '';
-
             let currentTypingSpeed = parseInt(typingSpeed, 10);
 
             switch (speedMode) {
